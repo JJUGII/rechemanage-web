@@ -1,0 +1,18 @@
+{
+  "name": "RecheManage Web",
+  "short_name": "RecheManage",
+  "description": "Excel/CSV 거래내역 분석",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a5f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
