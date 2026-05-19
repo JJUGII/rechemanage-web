@@ -7,7 +7,7 @@ export const ACTIVITY_REPORT_OUTER = `<table cellspacing="0" cellpadding="0" sty
 <table style="FONT-SIZE: 10pt; HEIGHT: 289px; FONT-FAMILY: 맑은 고딕; WIDTH: 640px; BORDER-COLLAPSE: collapse" cellspacing="0" cellpadding="1">
 <tbody>
 <tr>
-<td id="body" style="BORDER-TOP: rgb(0,0,0) 1px solid; BORDER-RIGHT: rgb(0,0,0) 1px solid; BORDER-BOTTOM: rgb(0,0,0) 1px solid; TEXT-ALIGN: left; BORDER-LEFT: rgb(0,0,0) 1px solid" height="289" valign="top" width="636">
+<td id="body" style="TEXT-ALIGN: left; border-image: none" height="289" valign="top" width="636">
 <div style="FONT-SIZE: 14px; FONT-FAMILY: 'Malgun Gothic', '맑은 고딕', sans-serif">
 <div style="FONT-SIZE: 10pt; MARGIN-TOP: 5px; TEXT-ALIGN: left">
 <div style="FONT-SIZE: 14px; FONT-FAMILY: 'Malgun Gothic', '맑은 고딕', sans-serif">

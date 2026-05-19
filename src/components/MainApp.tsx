@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReportPreviewHandle } from "./ReportPreview";
 import { toast } from "sonner";
 import type { LoadedFile, StatusFilter, Transaction } from "@/lib/types";
 import type { PersistedWebSettings } from "@/lib/storage";
@@ -23,7 +24,13 @@ import {
   saveLastSelectedMonth,
   clearUserExclusions as storageClearUserExclusions,
 } from "@/lib/storage";
-import { buildActivityReportHtml, copyHtmlToClipboard, downloadHtml, htmlToPlainText } from "@/lib/reportHtml";
+import {
+  buildActivityReportHtml,
+  copyHtmlToClipboard,
+  downloadHtml,
+  htmlToPlainText,
+  prepareReportHtmlForExport,
+} from "@/lib/reportHtml";
 import { sortTransactionRows } from "@/lib/sortTransactions";
 import type { SortColumn, SortDirection } from "@/lib/sortTransactions";
 import { FileUploader } from "./FileUploader";
@@ -80,6 +87,7 @@ export default function MainApp() {
   const [clipboardFallback, setClipboardFallback] = useState("");
   const [pendingEncrypted, setPendingEncrypted] = useState<PendingEncryptedFile[]>([]);
   const transactionsRef = useRef<Transaction[]>([]);
+  const reportPreviewRef = useRef<ReportPreviewHandle>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [loading, setLoading] = useState<{ active: boolean; message: string }>({ active: false, message: "" });
@@ -468,9 +476,15 @@ export default function MainApp() {
     setClipboardFallback("");
   }, [monthFilter, months, transactions, memberCount]);
 
+  const getExportHtml = useCallback(() => {
+    const raw = reportPreviewRef.current?.getHtml() ?? reportHtml;
+    return prepareReportHtmlForExport(raw);
+  }, [reportHtml]);
+
   const copyReport = useCallback(async () => {
-    const plain = htmlToPlainText(reportHtml);
-    const r = await copyHtmlToClipboard(reportHtml, plain);
+    const exportHtml = getExportHtml();
+    const plain = htmlToPlainText(exportHtml);
+    const r = await copyHtmlToClipboard(exportHtml, plain);
     if (r === "html") {
       setClipboardFallback("");
       toast.success("HTML 복사 완료");
@@ -481,13 +495,13 @@ export default function MainApp() {
       toast.message("브라우저 제한으로 텍스트 복사로 대체됨");
       return;
     }
-    setClipboardFallback(reportHtml);
+    setClipboardFallback(exportHtml);
     toast.error("복사 실패 — 아래 영역에서 수동으로 복사하세요.");
-  }, [reportHtml]);
+  }, [getExportHtml]);
 
   const downloadReport = useCallback(() => {
-    downloadHtml(`동호회_활동보고서_${reportMonth}.html`, reportHtml);
-  }, [reportHtml, reportMonth]);
+    downloadHtml(`동호회_활동보고서_${reportMonth}.html`, getExportHtml());
+  }, [getExportHtml, reportMonth]);
 
   const settingsSnapshot = useCallback(
     () => ({
@@ -636,9 +650,11 @@ export default function MainApp() {
       </div>
 
       <ReportPreview
+        ref={reportPreviewRef}
         open={reportOpen}
         html={reportHtml}
         fallbackHtml={clipboardFallback}
+        onHtmlChange={setReportHtml}
         onClose={() => setReportOpen(false)}
         onCopy={() => void copyReport()}
         onDownload={downloadReport}

@@ -205,7 +205,19 @@ export function buildActivityReportHtml(
     "{{ACTIVITY_TABLES}}",
     actHtml,
   );
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>활동보고서 ${esc(month)}</title></head><body style="margin:0">${body}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>활동보고서 ${esc(month)}</title></head><body style="margin:0" contenteditable="true">${body}</body></html>`;
+}
+
+/** iframe 편집 결과 → 저장·복사용 전체 HTML */
+export function serializeReportDocument(doc: Document): string {
+  const clone = doc.documentElement.cloneNode(true) as HTMLElement;
+  clone.querySelector("body")?.removeAttribute("contenteditable");
+  return `<!DOCTYPE html>\n${clone.outerHTML}`;
+}
+
+/** 붙여넣기·다운로드용 — contenteditable 제거 */
+export function prepareReportHtmlForExport(html: string): string {
+  return html.replace(/\s*contenteditable="(true|false)"/gi, "");
 }
 
 export function htmlToPlainText(html: string): string {
