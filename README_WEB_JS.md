@@ -60,9 +60,18 @@ npm test
 
 ### Vercel
 
-- Root directory: `web-js`
-- Build: `npm run build`
-- Output: `out` (Static Export인 경우 프로젝트 설정에서 Output directory 지정)
+**Root Directory**(프로젝트 설정 → General)를 반드시 Next 앱 폴더로 맞춥니다.
+
+| Git 저장소 루트 | Vercel Root Directory |
+|-----------------|------------------------|
+| `club_cashback_manager` | `web-js` |
+| `bank` (상위 monorepo) | `club_cashback_manager/web-js` |
+| `web-js`만 단독 push | `.` (비움) |
+
+- Build: `npm run build` (또는 저장소 루트의 `vercel.json`이 하위 경로로 위임)
+- Output: `out` (`output: "export"`)
+
+`Couldn't find any pages or app directory` 오류는 대부분 **Root Directory가 `web-js`가 아닐 때** 발생합니다.
 
 또는 CLI: `cd web-js && npx vercel`
 
