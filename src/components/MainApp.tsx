@@ -25,12 +25,13 @@ import {
   clearUserExclusions as storageClearUserExclusions,
 } from "@/lib/storage";
 import {
-  buildActivityReportHtml,
+  buildActivityReportHtmlFromGroups,
   copyHtmlToClipboard,
   downloadHtml,
   htmlToPlainText,
   prepareReportHtmlForExport,
 } from "@/lib/reportHtml";
+import type { MeetingGroupInput } from "@/lib/activityReportAuto";
 import { sortTransactionRows } from "@/lib/sortTransactions";
 import type { SortColumn, SortDirection } from "@/lib/sortTransactions";
 import { FileUploader } from "./FileUploader";
@@ -38,6 +39,7 @@ import { MonthSelector } from "./MonthSelector";
 import { TransactionTable } from "./TransactionTable";
 import { SummaryPanel } from "./SummaryPanel";
 import { ReportPreview } from "./ReportPreview";
+import { MeetingGrouping } from "./MeetingGrouping";
 import { SettingsMenu } from "./SettingsMenu";
 import { EncryptedExcelPrompt } from "./EncryptedExcelPrompt";
 
@@ -84,6 +86,8 @@ export default function MainApp() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportHtml, setReportHtml] = useState("");
   const [reportMonth, setReportMonth] = useState("");
+  const [groupingOpen, setGroupingOpen] = useState(false);
+  const [groupingMonth, setGroupingMonth] = useState("");
   const [clipboardFallback, setClipboardFallback] = useState("");
   const [pendingEncrypted, setPendingEncrypted] = useState<PendingEncryptedFile[]>([]);
   const transactionsRef = useRef<Transaction[]>([]);
@@ -469,12 +473,21 @@ export default function MainApp() {
       toast.error("거래가 있거나 월을 선택한 뒤 활동보고서를 생성하세요.");
       return;
     }
-    const html = buildActivityReportHtml(m, transactions, memberCount);
-    setReportMonth(m);
-    setReportHtml(html);
-    setReportOpen(true);
-    setClipboardFallback("");
-  }, [monthFilter, months, transactions, memberCount]);
+    setGroupingMonth(m);
+    setGroupingOpen(true);
+  }, [monthFilter, months]);
+
+  const generateReportFromGroups = useCallback(
+    (groups: MeetingGroupInput[]) => {
+      const html = buildActivityReportHtmlFromGroups(groupingMonth, transactions, groups, memberCount);
+      setReportMonth(groupingMonth);
+      setReportHtml(html);
+      setGroupingOpen(false);
+      setReportOpen(true);
+      setClipboardFallback("");
+    },
+    [groupingMonth, transactions, memberCount],
+  );
 
   const getExportHtml = useCallback(() => {
     const raw = reportPreviewRef.current?.getHtml() ?? reportHtml;
@@ -648,6 +661,15 @@ export default function MainApp() {
           />
         </aside>
       </div>
+
+      <MeetingGrouping
+        open={groupingOpen}
+        month={groupingMonth}
+        transactions={transactions}
+        memberCount={memberCount}
+        onClose={() => setGroupingOpen(false)}
+        onGenerate={generateReportFromGroups}
+      />
 
       <ReportPreview
         ref={reportPreviewRef}

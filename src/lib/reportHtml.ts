@@ -2,8 +2,10 @@ import type { Transaction } from "./types";
 import { ACTIVITY_REPORT_OUTER } from "@/templates/activityReportTemplate";
 import {
   buildActivityRowsAuto,
+  buildActivityRowsFromGroups,
   buildFeeRowsForMonth,
   type ActivityReportActivityRow,
+  type MeetingGroupInput,
 } from "./activityReportAuto";
 
 const MIN_FEE_DATA_ROWS = 11;
@@ -191,6 +193,21 @@ function buildActivityTablesHtml(rows: ActivityReportActivityRow[], memberCount:
   return blocks.join("<p></p>\n<p></p>\n");
 }
 
+function renderReportDocument(
+  month: string,
+  feeRows: ReturnType<typeof buildFeeRowsForMonth>,
+  activityRows: ActivityReportActivityRow[],
+  memberCount: number,
+): string {
+  const feeTr = buildFeeTableRowsHtml(feeRows);
+  const actHtml = buildActivityTablesHtml(activityRows, memberCount);
+  const body = ACTIVITY_REPORT_OUTER.replace("{{FEE_TABLE_ROWS}}", feeTr).replace(
+    "{{ACTIVITY_TABLES}}",
+    actHtml,
+  );
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>활동보고서 ${esc(month)}</title></head><body style="margin:0" contenteditable="true">${body}</body></html>`;
+}
+
 export function buildActivityReportHtml(
   month: string,
   transactions: Transaction[],
@@ -199,13 +216,20 @@ export function buildActivityReportHtml(
   const txs = transactions.filter((t) => t.month === month);
   const feeRows = buildFeeRowsForMonth(txs);
   const activityRows = buildActivityRowsAuto(txs, memberCount);
-  const feeTr = buildFeeTableRowsHtml(feeRows);
-  const actHtml = buildActivityTablesHtml(activityRows, memberCount);
-  const body = ACTIVITY_REPORT_OUTER.replace("{{FEE_TABLE_ROWS}}", feeTr).replace(
-    "{{ACTIVITY_TABLES}}",
-    actHtml,
-  );
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>활동보고서 ${esc(month)}</title></head><body style="margin:0" contenteditable="true">${body}</body></html>`;
+  return renderReportDocument(month, feeRows, activityRows, memberCount);
+}
+
+// 사용자가 수동으로 묶은 모임 그룹으로 활동보고서를 만든다. 회비표(섹션1)는 월 전체 거래 그대로.
+export function buildActivityReportHtmlFromGroups(
+  month: string,
+  transactions: Transaction[],
+  groups: MeetingGroupInput[],
+  memberCount = 20,
+): string {
+  const txs = transactions.filter((t) => t.month === month);
+  const feeRows = buildFeeRowsForMonth(txs);
+  const activityRows = buildActivityRowsFromGroups(txs, groups, memberCount);
+  return renderReportDocument(month, feeRows, activityRows, memberCount);
 }
 
 /** iframe 편집 결과 → 저장·복사용 전체 HTML */

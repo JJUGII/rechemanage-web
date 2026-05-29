@@ -74,6 +74,15 @@ function isActivityExpense(tx: Transaction): boolean {
   return true;
 }
 
+// 수동 묶음 후보: 출금이며 계산제외/이자/캐시백만 빼고 모두 포함(불인정·식대도 사용자가 직접 묶을 수 있게).
+export function isGroupableExpense(tx: Transaction): boolean {
+  if (tx.withdrawal <= 0) return false;
+  if (tx.supportStatus === "계산제외") return false;
+  const d = tx.description || "";
+  if (["예금이자", "이자", "캐시백"].some((k) => d.includes(k))) return false;
+  return true;
+}
+
 function inferPlace(descriptions: string[]): string {
   const blob = descriptions.join(" ");
   const b = blob.toLowerCase();
@@ -131,27 +140,78 @@ export function buildActivityRowsAuto(
   const rows: ActivityReportActivityRow[] = [];
   for (const d of [...byDay.keys()].sort()) {
     const group = byDay.get(d)!;
-    const cost = group.reduce((s, tx) => s + tx.withdrawal, 0);
-    const descs = group.map((tx) => cleanField(tx.description));
-    const usages = group.map((tx) => usageLabelForDetail(tx));
-    const agg = new Map<string, number>();
-    for (const tx of group) {
-      const lab = detailLabel(usageLabelForDetail(tx)) || "항목";
-      agg.set(lab, (agg.get(lab) ?? 0) + tx.withdrawal);
-    }
-    const details = [...agg.entries()].map(
-      ([lab, amt]) => `${lab} (${Math.round(amt).toLocaleString("ko-KR")}원)`,
+    rows.push(buildOneActivityRow(group, defaultTotalMembers, { meetingDate: d }));
+  }
+  return rows;
+}
+
+// 한 모임(거래 묶음)에 대한 활동내역 한 행을 만든다. 비고는 같은 라벨끼리 합산.
+function buildOneActivityRow(
+  group: Transaction[],
+  defaultTotalMembers: number,
+  override: {
+    meetingDate?: string;
+    meetingPlace?: string;
+    costDetail?: string;
+    attendedMembers?: number;
+    totalMembers?: number;
+  },
+): ActivityReportActivityRow {
+  const cost = group.reduce((s, tx) => s + tx.withdrawal, 0);
+  const descs = group.map((tx) => cleanField(tx.description));
+  const usages = group.map((tx) => usageLabelForDetail(tx));
+  const agg = new Map<string, number>();
+  for (const tx of group) {
+    const lab = detailLabel(usageLabelForDetail(tx)) || "항목";
+    agg.set(lab, (agg.get(lab) ?? 0) + tx.withdrawal);
+  }
+  const details = [...agg.entries()].map(
+    ([lab, amt]) => `${lab} (${Math.round(amt).toLocaleString("ko-KR")}원)`,
+  );
+  const detailStr = details.join(" / ");
+  const rawDate = override.meetingDate ?? group[0]?.date ?? "";
+  return {
+    meetingDate: override.meetingDate && override.meetingDate.includes("-")
+      ? fmtMeetingDay(override.meetingDate)
+      : override.meetingDate || fmtMeetingDay(rawDate),
+    meetingPlace: override.meetingPlace ?? inferPlace(descs),
+    totalMembers: override.totalMembers ?? defaultTotalMembers,
+    attendedMembers: override.attendedMembers ?? 0,
+    activityCost: cost,
+    costDetail: override.costDetail ?? inferCostTitle(descs, usages),
+    note: detailStr ? `상세 내역: ${detailStr}` : "",
+  };
+}
+
+export interface MeetingGroupInput {
+  txIds: string[];
+  meetingDate?: string;
+  meetingPlace?: string;
+  costDetail?: string;
+  attendedMembers?: number;
+}
+
+// 사용자가 직접 묶은 모임 그룹들로 활동내역 행을 만든다.
+export function buildActivityRowsFromGroups(
+  txs: Transaction[],
+  groups: MeetingGroupInput[],
+  defaultTotalMembers: number,
+): ActivityReportActivityRow[] {
+  const byId = new Map(txs.map((t) => [t.id, t]));
+  const rows: ActivityReportActivityRow[] = [];
+  for (const g of groups) {
+    const groupTxs = g.txIds
+      .map((id) => byId.get(id))
+      .filter((t): t is Transaction => !!t);
+    if (groupTxs.length === 0) continue;
+    rows.push(
+      buildOneActivityRow(groupTxs, defaultTotalMembers, {
+        meetingDate: g.meetingDate,
+        meetingPlace: g.meetingPlace,
+        costDetail: g.costDetail,
+        attendedMembers: g.attendedMembers,
+      }),
     );
-    const detailStr = details.join(" / ");
-    rows.push({
-      meetingDate: fmtMeetingDay(d),
-      meetingPlace: inferPlace(descs),
-      totalMembers: defaultTotalMembers,
-      attendedMembers: 0,
-      activityCost: cost,
-      costDetail: inferCostTitle(descs, usages),
-      note: detailStr ? `상세 내역: ${detailStr}` : "",
-    });
   }
   return rows;
 }
