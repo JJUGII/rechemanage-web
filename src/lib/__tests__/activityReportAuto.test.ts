@@ -32,6 +32,21 @@ describe("activityReportAuto", () => {
     expect(rows[0]!.activityCost).toBe(8000);
   });
 
+  it("비고는 같은 라벨 항목을 합산해 한 줄로 표시", () => {
+    const rows = buildActivityRowsAuto(
+      [
+        tx({ id: "a", description: "간식-1", category: "간식비", supportStatus: "인정", withdrawal: 44000 }),
+        tx({ id: "b", description: "간식-2", category: "간식비", supportStatus: "인정", withdrawal: 5400 }),
+        tx({ id: "c", description: "저녁식사", category: "활동식대", supportStatus: "인정", withdrawal: 105200 }),
+      ],
+      20,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.note).toContain("간식 (49,400원)");
+    expect(rows[0]!.note).not.toContain("간식 (44,000원)");
+    expect(rows[0]!.activityCost).toBe(154600);
+  });
+
   it("fee 행은 사용내역·거래처 분리", () => {
     const fees = buildFeeRowsForMonth([
       tx({

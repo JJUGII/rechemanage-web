@@ -109,6 +109,13 @@ function usageLabelForDetail(tx: Transaction): string {
   return inferUsageType(tx.description, tx.category) || "항목";
 }
 
+const ITEM_SUFFIX_RE = /\s*-\s*\d+\s*$/;
+
+// 비고 항목 라벨에서 -1/-2 같은 꼬리 번호를 떼어 같은 종류끼리 합산되게 한다.
+function detailLabel(s: string): string {
+  return s.replace(ITEM_SUFFIX_RE, "").trim();
+}
+
 export function buildActivityRowsAuto(
   txs: Transaction[],
   defaultTotalMembers: number,
@@ -127,10 +134,14 @@ export function buildActivityRowsAuto(
     const cost = group.reduce((s, tx) => s + tx.withdrawal, 0);
     const descs = group.map((tx) => cleanField(tx.description));
     const usages = group.map((tx) => usageLabelForDetail(tx));
-    const details = group.map((tx) => {
-      const lab = usageLabelForDetail(tx);
-      return `${lab} (${Math.round(tx.withdrawal).toLocaleString("ko-KR")}원)`;
-    });
+    const agg = new Map<string, number>();
+    for (const tx of group) {
+      const lab = detailLabel(usageLabelForDetail(tx)) || "항목";
+      agg.set(lab, (agg.get(lab) ?? 0) + tx.withdrawal);
+    }
+    const details = [...agg.entries()].map(
+      ([lab, amt]) => `${lab} (${Math.round(amt).toLocaleString("ko-KR")}원)`,
+    );
     const detailStr = details.join(" / ");
     rows.push({
       meetingDate: fmtMeetingDay(d),
